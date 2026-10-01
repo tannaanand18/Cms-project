@@ -47,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($fileSize > $maxSizeBytes) {
             $errors[] = 'Attachment size exceeds maximum limit of 10MB.';
         } else {
-            $uploadsDir = __DIR__ . '/../uploads/';
+            $isVercel = !empty($_ENV['VERCEL']) || !empty($_SERVER['VERCEL']) || getenv('VERCEL') !== false;
+            $uploadsDir = $isVercel ? '/tmp/uploads/' : __DIR__ . '/../uploads/';
             if (!is_dir($uploadsDir)) {
                 mkdir($uploadsDir, 0777, true);
             }

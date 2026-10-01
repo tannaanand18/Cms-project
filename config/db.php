@@ -2,19 +2,19 @@
 /**
  * Database Configuration & Helper Utilities
  * Online Complaint Management System
- * Supports MySQL (Default XAMPP) with seamless local SQLite fallback
+ * Supports MySQL (Local XAMPP & Cloud MySQL on Vercel) with seamless SQLite fallback
  */
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Database Credentials (Default XAMPP Configuration)
-define('DB_HOST', '127.0.0.1');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'complaint_db');
-define('DB_PORT', 3306);
+// Database Credentials (Supports Cloud Environment Variables & Local XAMPP)
+define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
+define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
+define('DB_NAME', getenv('DB_NAME') ?: 'complaint_db');
+define('DB_PORT', getenv('DB_PORT') ? (int)getenv('DB_PORT') : 3306);
 
 // App Base Path helper
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) ? "https://" : "http://";
@@ -27,7 +27,7 @@ define('BASE_URL', $protocol . $host . $projectRoot . '/');
 
 /**
  * Returns active PDO database connection.
- * Tries MySQL first. If MySQL is not running, falls back to embedded SQLite.
+ * Tries MySQL first. If MySQL is not running/configured, falls back to embedded SQLite.
  */
 function getDB() {
     static $pdo = null;
@@ -35,45 +35,61 @@ function getDB() {
         return $pdo;
     }
 
-    // 1. Try MySQL Connection
-    try {
-        $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";charset=utf8mb4";
-        $options = [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-            PDO::ATTR_TIMEOUT            => 1, // Quick 1s timeout if MySQL service is not running
-        ];
-        $tmpPdo = new PDO($dsn, DB_USER, DB_PASS, $options);
-        // Ensure database exists
-        $tmpPdo->exec("CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        $tmpPdo->exec("USE `" . DB_NAME . "`;");
+    // Detect if running on Vercel or Cloud
+    $isVercel = !empty($_ENV['VERCEL']) || !empty($_SERVER['VERCEL']) || getenv('VERCEL') !== false;
 
-        // Connect to complaint_db
-        $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";port=" . DB_PORT . ";charset=utf8mb4", DB_USER, DB_PASS, $options);
-        return $pdo;
-    } catch (Throwable $mysqlEx) {
-        // 2. MySQL is not running - Seamless fallback to SQLite
+    // 1. Try MySQL Connection if configured or local
+    $hasCustomMysql = (getenv('DB_HOST') !== false);
+    if ($hasCustomMysql || !$isVercel) {
         try {
-            $sqlitePath = __DIR__ . '/complaint_db.sqlite';
-            $isNew = !file_exists($sqlitePath);
-            $pdo = new PDO("sqlite:" . $sqlitePath, null, null, [
+            $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";charset=utf8mb4";
+            $options = [
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            ]);
-            $pdo->exec("PRAGMA foreign_keys = ON;");
+                PDO::ATTR_EMULATE_PREPARES   => false,
+                PDO::ATTR_TIMEOUT            => 2,
+            ];
+            $tmpPdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+            $tmpPdo->exec("CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+            $tmpPdo->exec("USE `" . DB_NAME . "`;");
 
-            if ($isNew || filesize($sqlitePath) < 100) {
-                initSqliteSchema($pdo);
-            }
+            $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";port=" . DB_PORT . ";charset=utf8mb4", DB_USER, DB_PASS, $options);
             return $pdo;
-        } catch (Throwable $sqliteEx) {
-            die('<div style="font-family:sans-serif;max-width:600px;margin:50px auto;padding:25px;border-radius:12px;background:#fef2f2;border:1px solid #f87171;color:#991b1b;">
-                <h2 style="margin-top:0;">Database Connection Failed</h2>
-                <p>Could not connect to MySQL or initialize SQLite fallback:</p>
-                <p style="font-size:12px;background:#fee2e2;padding:8px;border-radius:6px;">' . htmlspecialchars($sqliteEx->getMessage()) . '</p>
-            </div>');
+        } catch (Throwable $mysqlEx) {
+            if ($hasCustomMysql) {
+                die("MySQL Connection Error: " . htmlspecialchars($mysqlEx->getMessage()));
+            }
         }
+    }
+
+    // 2. Fallback to SQLite (Writable in /tmp on Vercel)
+    try {
+        $sourceDb = __DIR__ . '/complaint_db.sqlite';
+        if ($isVercel) {
+            $sqlitePath = '/tmp/complaint_db.sqlite';
+            if (!file_exists($sqlitePath) && file_exists($sourceDb)) {
+                copy($sourceDb, $sqlitePath);
+            }
+        } else {
+            $sqlitePath = $sourceDb;
+        }
+
+        $isNew = !file_exists($sqlitePath);
+        $pdo = new PDO("sqlite:" . $sqlitePath, null, null, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+        $pdo->exec("PRAGMA foreign_keys = ON;");
+
+        if ($isNew || filesize($sqlitePath) < 100) {
+            initSqliteSchema($pdo);
+        }
+        return $pdo;
+    } catch (Throwable $sqliteEx) {
+        die('<div style="font-family:sans-serif;max-width:600px;margin:50px auto;padding:25px;border-radius:12px;background:#fef2f2;border:1px solid #f87171;color:#991b1b;">
+            <h2 style="margin-top:0;">Database Connection Notice</h2>
+            <p>' . htmlspecialchars($sqliteEx->getMessage()) . '</p>
+        </div>');
     }
 }
 
@@ -139,7 +155,6 @@ function initSqliteSchema($pdo) {
         ('Other Services', 'General inquiries, feedback, and miscellaneous issues');");
 
     // Seed default admin and user
-    // admin123 hash, user123 hash
     $pdo->exec("INSERT INTO users (name, email, password, phone, address, role) VALUES
         ('System Administrator', 'admin@cms.com', '$2y$12$pexqbIRgn/3emxmhmFs1V.gHSCkQDSq1MO91yZNzL2A1UqaVF5ek.', '9876543210', 'Headquarters, Admin Block', 'admin'),
         ('John Citizen', 'user@cms.com', '$2y$12$DkJbdR7Ccto31aWSm.njeu/6V83SqyR7uoDYhllyC3dP2LpTJ2Fl.', '9123456780', '42 Maple Street, Sector 5', 'user');");
