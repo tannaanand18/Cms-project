@@ -17,13 +17,17 @@ define('DB_NAME', getenv('DB_NAME') ?: 'complaint_db');
 define('DB_PORT', getenv('DB_PORT') ? (int)getenv('DB_PORT') : 3306);
 
 // App Base Path helper
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) ? "https://" : "http://";
-$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
+$isVercel = !empty($_ENV['VERCEL']) || !empty($_SERVER['VERCEL']) || getenv('VERCEL') !== false || (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'vercel.app') !== false);
 
-// Find root path relative to current script
-$projectRoot = rtrim(preg_replace('/(\/(admin|user|config|includes|assets|uploads))(\/.*)?$/', '', $scriptDir), '/');
-define('BASE_URL', $protocol . $host . $projectRoot . '/');
+if ($isVercel) {
+    define('BASE_URL', '/');
+} else {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
+    $projectRoot = rtrim(preg_replace('/(\/(admin|user|config|includes|assets|uploads|api))(\/.*)?$/', '', $scriptDir), '/');
+    define('BASE_URL', $protocol . $host . ($projectRoot ? $projectRoot : '') . '/');
+}
 
 /**
  * Returns active PDO database connection.
