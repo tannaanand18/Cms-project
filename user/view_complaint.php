@@ -45,7 +45,7 @@ $step3 = ($status === 'In Progress') ? 'active' : (($status === 'Resolved') ? 'c
 $step4 = ($status === 'Resolved') ? 'completed' : (($status === 'Rejected') ? 'rejected' : '');
 ?>
 
-<div style="max-width: 900px; margin: 1rem auto 3rem;">
+<div style="max-width: 1250px; margin: 1rem auto 3.5rem;">
     <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
         <a href="<?= BASE_URL ?>user/my_complaints.php" style="font-size: 0.875rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.35rem;">
             &larr; Back to My Complaints

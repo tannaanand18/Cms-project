@@ -138,7 +138,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     <strong style="color: var(--primary);"><?= htmlspecialchars($c['tracking_code']) ?></strong>
                                 </td>
                                 <td>
-                                    <div style="font-weight: 600; color: var(--text-main); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    <div style="font-weight: 600; color: var(--text-main); max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                         <?= htmlspecialchars($c['title']) ?>
                                     </div>
                                     <?php if (!empty($c['attachment_path'])): ?>

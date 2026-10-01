@@ -37,7 +37,7 @@ if (!empty($trackingCode)) {
 }
 ?>
 
-<div style="max-width: 900px; margin: 1rem auto 3rem;">
+<div style="max-width: 1200px; margin: 1rem auto 3.5rem;">
     <div style="text-align: center; margin-bottom: 2rem;">
         <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem;">Track Complaint Status</h1>
         <p style="color: var(--text-muted);">Enter your assigned tracking code to see real-time updates and department remarks.</p>

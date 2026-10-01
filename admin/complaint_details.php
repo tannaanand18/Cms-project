@@ -86,7 +86,7 @@ $logs = $logStmt->fetchAll();
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<div style="max-width: 1040px; margin: 1rem auto 3rem;">
+<div style="max-width: 1400px; margin: 1rem auto 3.5rem;">
     <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
         <a href="<?= BASE_URL ?>admin/complaints.php" style="font-size: 0.875rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.35rem;">
             &larr; Back to Complaints Roster
